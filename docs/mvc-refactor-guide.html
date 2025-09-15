@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modo GTM WooCommerce — Guide MVC</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif; line-height: 1.5; padding: 24px; color: #222; }
+    code, pre { background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 4px; }
+    code { padding: 0 4px; }
+    pre { padding: 12px; overflow-x: auto; }
+    h1, h2, h3 { margin-top: 1.4em; }
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1.1rem; }
+    ul { margin: 0.5em 0 0.5em 1.2em; }
+  </style>
+  <meta name="description" content="Guide de refactorisation MVC pour le plugin Modo GTM WooCommerce" />
+</head>
+<body>
+  <h1>Modo GTM WooCommerce — Guide de refactorisation MVC</h1>
+  <p>Ce document explique les changements apportés pour migrer le plugin vers une structure MVC, l’organisation du code et comment l’étendre.</p>
+
+  <h2>Objectifs</h2>
+  <ul>
+    <li>Isolation par responsabilité (évènements, settings, assets).</li>
+    <li>Suppression des doublons de hooks.</li>
+    <li>Factorisation de la construction des données eCommerce.</li>
+    <li>Extensibilité améliorée.</li>
+  </ul>
+
+  <h2>Architecture</h2>
+  <ul>
+    <li><strong>Controllers</strong>: <code>app/Controllers/Events/*Controller.php</code>, <code>app/Controllers/Admin/SettingsController.php</code>, <code>app/Controllers/Frontend/AssetsController.php</code></li>
+    <li><strong>Models</strong>: <code>app/Models/EventDataBuilder.php</code></li>
+    <li><strong>Views</strong>: <code>app/Views/scripts/push-event.php</code>, <code>app/Views/admin/settings-page.php</code></li>
+    <li><strong>Core</strong>: <code>app/Core/Autoloader.php</code>, <code>app/Plugin.php</code></li>
+  </ul>
+
+  <h2>Circuit de chargement</h2>
+  <pre><code>// modo-gtm-woocommerce.php
+require_once MODOGTMWC_PATH . 'app/Core/Autoloader.php';
+\ModoGtmWc\Core\Autoloader::register();
+require_once MODOGTMWC_PATH . 'app/Plugin.php';
+\ModoGtmWc\Plugin::init();
+  </code></pre>
+  <pre><code>// app/Plugin.php
+add_action('plugins_loaded', [Plugin::class, 'register_hooks']);
+// Enregistre Events, Settings (admin), Assets (front)
+  </code></pre>
+
+  <h2>Détails par évènement</h2>
+  <h3>View Item</h3>
+  <ul>
+    <li>Hook: <code>woocommerce_after_single_product</code></li>
+    <li>Contrôleur: <code>app/Controllers/Events/ViewItemController.php</code></li>
+    <li>Variantes: depuis <code>$_GET['attribute_*']</code>, jointure <code>,</code></li>
+  </ul>
+  <pre><code>$event_data['ecommerce'] = [
+  'currency' =&gt; get_woocommerce_currency(),
+  'value'    =&gt; (float) $product-&gt;get_price(),
+  'items'    =&gt; [$builder-&gt;buildItem($product, 1, ['variant_join' =&gt; ','])],
+];
+  </code></pre>
+
+  <h3>Add To Cart</h3>
+  <ul>
+    <li>Hooks: <code>woocommerce_add_to_cart</code>, <code>woocommerce_loop_add_to_cart_link</code></li>
+    <li>Contrôleur: <code>app/Controllers/Events/AddToCartController.php</code></li>
+    <li>AJAX via <code>assets/front/js/front-script.js</code></li>
+  </ul>
+  <pre><code>$item = $builder-&gt;buildItem($product, (int) $quantity, [
+  'variation_values' =&gt; is_array($variation) ? array_values($variation) : [],
+  'variant_join'     =&gt; ',',
+]);
+  </code></pre>
+
+  <h3>Remove From Cart</h3>
+  <ul>
+    <li>Filtre: <code>woocommerce_cart_item_remove_link</code></li>
+    <li>Valeur: <code>line_total</code>, coupon du panier si présent</li>
+  </ul>
+
+  <h3>Purchase</h3>
+  <ul>
+    <li>Hook: <code>woocommerce_thankyou</code></li>
+    <li>Items: <code>price = line_total / quantity</code>, <code>index</code> incrémental</li>
+  </ul>
+
+  <h3>View Item List</h3>
+  <ul>
+    <li>Hooks: <code>the_post</code> (collecte), <code>wp_footer</code> (rendu)</li>
+    <li>Pas de variantes. Contexte liste (Shop/Cat/Search).</li>
+  </ul>
+
+  <h2>Construction des items</h2>
+  <p>Fichier: <code>app/Models/EventDataBuilder.php</code></p>
+  <pre><code>buildItem(\WC_Product $product, int $quantity = 1, array $opts = [])
+// opts: suppress_variants, variation_values, variant_join
+  </code></pre>
+  <ul>
+    <li>Marque sur parent si variation.</li>
+    <li>Catégories « smart » (profondeur max) ou niveau 1.</li>
+    <li>Remises: variation &gt; variable &gt; simple.</li>
+    <li>Variantes: hook &gt; variation &gt; variable (GET/defaults).</li>
+  </ul>
+
+  <h2>Settings/Admin</h2>
+  <ul>
+    <li>Contrôleur: <code>app/Controllers/Admin/SettingsController.php</code></li>
+    <li>Vue: <code>app/Views/admin/settings-page.php</code></li>
+    <li>Mêmes <code>option_name</code> et groupes que l’original.</li>
+  </ul>
+
+  <h2>Frontend assets</h2>
+  <ul>
+    <li>Contrôleur: <code>app/Controllers/Frontend/AssetsController.php</code></li>
+    <li>Gère <code>assets/front/js/front-script.js</code>.</li>
+  </ul>
+
+  <h2>Débogage</h2>
+  <ul>
+    <li>Vérifier le chemin vue: <code>app/Views/scripts/push-event.php</code>.</li>
+    <li>Consulter <code>wp-content/debug.log</code>.</li>
+    <li>Inspecter <code>window.dataLayer</code> dans la console.</li>
+  </ul>
+
+  <h2>Exporter en PDF</h2>
+  <ul>
+    <li>Fichier courant: <code>docs/mvc-refactor-guide.html</code>.</li>
+    <li>Ouvrir dans un navigateur: Imprimer → Enregistrer en PDF.</li>
+  </ul>
+
+  <hr />
+  <h1>Lecture détaillée du code</h1>
+  <p>Lecture fichier par fichier, avec extraits, pour comprendre les responsabilités de chaque pièce.</p>
+
+  <h2>Bootstrap et Autoloader</h2>
+  <p><strong>modo-gtm-woocommerce.php</strong></p>
+  <pre><code>require_once MODOGTMWC_PATH . 'app/Core/Autoloader.php';
+\ModoGtmWc\Core\Autoloader::register();
+require_once MODOGTMWC_PATH . 'app/Plugin.php';
+\ModoGtmWc\Plugin::init();
+  </code></pre>
+  <p>Charge l'autoloader et le coeur; les anciens hooks/events/settings sont migrés dans <code>app/Plugin.php</code>.</p>
+
+  <p><strong>app/Core/Autoloader.php</strong></p>
+  <pre><code>$prefix = 'ModoGtmWc\\';
+$base_dir = dirname(__DIR__, 1) . DIRECTORY_SEPARATOR; // app/
+$relative_class = substr($class, $len);
+$file = $base_dir . str_replace('\\', DIRECTORY_SEPARATOR, $relative_class) . '.php';
+  </code></pre>
+  <p>Transforme un nom de classe en chemin sous <code>app/</code>, puis <code>require</code> si présent.</p>
+
+  <p><strong>app/Plugin.php</strong></p>
+  <pre><code>add_action('plugins_loaded', [Plugin::class, 'register_hooks']);
+if (class_exists('WooCommerce')) { /* enregistre events */ }
+if (is_admin()) { (new SettingsController())-&gt;register(); }
+(new AssetsController())-&gt;register();
+  </code></pre>
+
+  <h2>Modèle: EventDataBuilder</h2>
+  <p><strong>app/Models/EventDataBuilder.php</strong></p>
+  <pre><code>buildItem(\WC_Product $product, int $quantity = 1, array $opts = [])
+// opts: suppress_variants, variation_values, variant_join
+  </code></pre>
+  <ul>
+    <li>Brand sur parent si variation; catégories « smart » ou niveau 1.</li>
+    <li>Remise: variation &gt; variable &gt; simple.</li>
+    <li>Variantes: hook &gt; variation &gt; variable (GET/defaults).</li>
+  </ul>
+  <pre><code>$item = $builder-&gt;buildItem($product, (int) $quantity, [
+  'variation_values' =&gt; is_array($variation) ? array_values($variation) : [],
+  'variant_join'     =&gt; ',',
+]);
+  </code></pre>
+
+  <h2>Vues: Injection dataLayer</h2>
+  <p><strong>app/Views/scripts/push-event.php</strong></p>
+  <pre><code>window.dataLayer = window.dataLayer || [];
+window.dataLayer.push({
+  event: "&lt;?php echo esc_js($event); ?&gt;",
+  &lt;?php echo substr(wp_json_encode($data), 1, -1); ?&gt;
+});
+  </code></pre>
+  <p>Chemin de template utilisé par tous: <code>dirname(__DIR__, 2) . '/Views/scripts/push-event.php'</code>.</p>
+
+  <h2>Contrôleurs d’évènements</h2>
+  <h3>ViewItemController</h3>
+  <p>Hook: <code>woocommerce_after_single_product</code>. Construit <code>ecommerce</code> avec <code>value = prix</code>, variantes jointes par « , ».</p>
+
+  <h3>AddToCartController</h3>
+  <ul>
+    <li><code>woocommerce_add_to_cart</code>: non‑AJAX, injection en footer.</li>
+    <li><code>woocommerce_loop_add_to_cart_link</code>: ajoute <code>data-event_data</code> pour le JS.</li>
+    <li><code>value = unit_price * quantity</code>, variantes depuis le hook.</li>
+  </ul>
+
+  <h3>RemoveFromCartController</h3>
+  <ul>
+    <li>Filtre lien remove: injecte <code>data-event_data</code>.</li>
+    <li><code>item.price</code> et <code>ecommerce.value</code> définis à <code>line_total</code>.</li>
+    <li>Coupon du panier si présent.</li>
+  </ul>
+
+  <h3>PurchaseController</h3>
+  <ul>
+    <li>Hook thankyou: <code>transaction_id</code>, <code>currency</code>, <code>value</code>.</li>
+    <li>Items: <code>price = line_total / quantity</code>, <code>index</code>, catégories corrigées.</li>
+  </ul>
+
+  <h3>ViewItemListController</h3>
+  <ul>
+    <li>Collecte via <code>the_post</code>, rendu unique en footer.</li>
+    <li>Pas de variantes, définit <code>index</code>, remplit <code>item_list_id/name</code>.</li>
+  </ul>
+
+  <h2>Admin et Frontend</h2>
+  <h3>SettingsController</h3>
+  <p>Enregistre la page d’options et les champs (Settings API), conserve les <code>option_name</code> existants.</p>
+  <h3>AssetsController</h3>
+  <p>Enqueue du script front <code>assets/front/js/front-script.js</code> pour gérer AJAX et remove.</p>
+
+  <h2>Dépannage (render_view)</h2>
+  <p>Si rien n’est injecté, vérifier le chemin du template en footer. Tous les contrôleurs doivent pointer vers <code>app/Views/scripts/push-event.php</code>.</p>
+</body>
+</html>
