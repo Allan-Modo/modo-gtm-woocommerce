@@ -40,7 +40,7 @@ class ViewItemListController {
         $product = wc_get_product($post->ID);
         if (!$product) return;
 
-        // avoid adding the current single product to the list
+        // Ne pas inclure le produit courant lorsque l'on est sur sa page (single)
         if (is_product()) {
             $current_product_id = get_queried_object()->ID ?? 0;
             if ($product->get_id() === $current_product_id || $product->get_sku() === get_post_meta($current_product_id, '_sku', true)) {
@@ -57,6 +57,7 @@ class ViewItemListController {
         if (isset(self::$already_collected[$unique_key])) return;
 
         $builder = new EventDataBuilder();
+        // Pas de variantes en liste : suppress_variants => true
         $data = $builder->buildItem($product, 1, ['suppress_variants' => true]);
         $data['index'] = self::$position_index++;
         self::$event_data['ecommerce']['items'][] = $data;
@@ -69,7 +70,7 @@ class ViewItemListController {
         $settings = get_option('modogtmwc_view_item_list_settings', []);
         if (empty($settings['event_view_item_list'])) return;
 
-        // map list context
+        // Déterminer le contexte de liste (Shop / Catégorie / Recherche / Autre)
         if (!empty($settings['event_view_item_products_details'])){
             if (is_shop()) {
                 $listName = 'Shop';

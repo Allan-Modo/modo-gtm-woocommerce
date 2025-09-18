@@ -6,8 +6,10 @@ use ModoGtmWc\Models\EventDataBuilder;
 if (!defined('ABSPATH')) exit;
 
 /**
- * Gère l'évènement view_item sur les pages produit.
- * Construit la charge item et l'injecte en footer.
+ * Contrôleur de l'évènement « view_item » (vue d'une page produit).
+ *
+ * Construit la charge item selon les réglages (devise, valeur, détails produits)
+ * et programme l'injection d'un script en footer pour pousser l'évènement.
  */
 class ViewItemController {
     /** Enregistre le hook d'affichage d'une page produit. */
@@ -30,10 +32,12 @@ class ViewItemController {
         $builder = new EventDataBuilder();
         $event_data = [];
 
+        // Inclure les détails produit si l'option est active
         if (!empty($settings['event_view_item_products_details'])) {
             $event_data['ecommerce'] = [
                 'currency' => get_woocommerce_currency(),
                 'value'    => (float) $product->get_price(),
+                // buildItem gère la récupération des variantes (GET attribute_* ou défauts)
                 'items'    => [$builder->buildItem($product, 1, ['variant_join' => ','])],
             ];
         }

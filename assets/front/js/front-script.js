@@ -1,7 +1,8 @@
-// Script front chargé des pushs dataLayer côté client pour les flux AJAX
+// Script front : pousse les évènements dans le dataLayer côté navigateur pour les flux AJAX
 // - add_to_cart (AJAX) : WooCommerce déclenche 'added_to_cart' avec l'élément bouton
-// - remove_from_cart : on écoute le clic sur le lien de suppression avec les données embarquées
+// - remove_from_cart   : on écoute le clic sur le lien de suppression contenant les données
 jQuery(function($){
+    // Ajout au panier (AJAX) : récupération du payload embarqué sur le bouton
     $(document.body).on('added_to_cart', function(event, fragments, cart_hash, $button){
         let eventData = $button.data("event_data");
 
@@ -19,7 +20,7 @@ jQuery(function($){
         }
     });
 
-    // Suppression panier : lire l'attribut data embarqué au moment du clic
+    // Suppression du panier : lire l'attribut data embarqué au moment du clic
     $(document).on('click', '.remove[data-event_data]', function(){
         let eventData = $(this).data('event_data');
 

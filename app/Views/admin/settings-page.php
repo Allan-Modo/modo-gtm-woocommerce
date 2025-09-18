@@ -1,6 +1,7 @@
 <?php
+// Vue admin : page de réglages principale avec onglets.
+// Variable d'entrée : $active_tab (fournie par le contrôleur)
 if (!defined('ABSPATH')) exit;
-// $active_tab is provided by the controller
 ?>
 <div class="wrap modogtmwc-settings-page">
     <h1>Paramètres GTM WooCommerce</h1>
@@ -15,8 +16,10 @@ if (!defined('ABSPATH')) exit;
         <a href="?page=modogtmwc-settings&tab=advanced-settings" class="nav-tab <?php echo $active_tab == 'advanced-settings' ? 'nav-tab-active' : ''; ?>">Paramètres avancés</a>
     </h2>
 
+    <!-- Formulaire relié à la Settings API -->
     <form method="post" action="options.php">
         <?php
+        // Rendu conditionnel des sections/champs selon l'onglet actif
         switch ($active_tab){
             case 'add_to_cart':
                 settings_fields('modogtmwc_add_to_cart_group');
@@ -48,4 +51,3 @@ if (!defined('ABSPATH')) exit;
         ?>
     </form>
 </div>
-

@@ -4,28 +4,38 @@ namespace ModoGtmWc\Controllers\Events;
 if (!defined('ABSPATH')) exit;
 
 /**
- * Gère l'évènement purchase sur la page de remerciement WooCommerce.
- * Construit la charge eCommerce au niveau commande et item puis l'injecte en footer.
+ * Contrôleur de l'évènement « purchase » (commande effectuée).
+ *
+ * Déclenché sur la page de remerciement WooCommerce. Construit la charge eCommerce
+ * au niveau commande (transaction_id, currency, value) et, selon réglage, au niveau
+ * des items (produits), puis programme l'injection d'un script en footer qui pousse
+ * l'évènement dans le dataLayer.
  */
 class PurchaseController {
-    /** Enregistre le handler purchase sur le hook thankyou. */
+    /**
+     * Enregistre le gestionnaire sur le hook WooCommerce « thankyou ».
+     */
     public function register(): void {
         add_action('woocommerce_thankyou', [$this, 'handle'], 10, 1);
     }
 
     /**
-     * Construit et rend les données de l'évènement purchase.
+     * Construit et rend les données de l'évènement purchase pour une commande donnée.
      *
      * @hook woocommerce_thankyou
+     * @param int|string $order_id Identifiant de la commande
      */
     public function handle($order_id): void {
+        // 1) Vérifier l'activation de l'évènement dans les réglages
         $settings = get_option('modogtmwc_purchase_settings', []);
         if (empty($settings['event_purchase'])) return;
 
+        // 2) Charger la commande
         $order = wc_get_order($order_id);
         if (!$order) return;
 
         $event_data = [];
+        // 3) Construire la charge commande si l'option « Inclure les données » est active
         if (!empty($settings['event_purchase_include_data'])) {
             $event_data['ecommerce'] = [
                 'transaction_id' => (string) $order->get_order_number(),
@@ -38,6 +48,7 @@ class PurchaseController {
                 $advanced_settings = get_option('modogtmwc_settings', []);
                 $product_index = 0;
 
+                // 4) Parcourir les lignes de commande et construire les items
                 foreach ($order->get_items() as $item_id => $item) {
                     $product = $item->get_product();
                     if (!$product) continue;
@@ -45,6 +56,7 @@ class PurchaseController {
                     $line_total = (float) $item->get_total();
                     $quantity   = (int) $item->get_quantity();
 
+                    // price = total de ligne / quantité (prix payé par unité)
                     $product_data = [
                         'item_id'   => $product->get_sku() ?: $product->get_id(),
                         'item_name' => $product->get_name(),
@@ -53,14 +65,14 @@ class PurchaseController {
                         'index'     => $product_index++,
                     ];
 
-                    // Brand on parent for variations
+                    // Marque sur le parent si variation
                     $product_id_for_terms = $product->is_type('variation') ? $product->get_parent_id() : $product->get_id();
                     $brand = get_the_terms($product_id_for_terms, 'product_brand');
                     if (!empty($brand) && !is_wp_error($brand)) {
                         $product_data['item_brand'] = $brand[0]->name;
                     }
 
-                    // Categories
+                    // Catégories (mode smart ou niveau 1)
                     $terms = get_the_terms($product_id_for_terms, 'product_cat');
                     if ($terms && !is_wp_error($terms)) {
                         $cat_levels = [];
@@ -82,7 +94,7 @@ class PurchaseController {
                         }
                     }
 
-                    // Variations
+                    // Variantes : utiliser les attributs de la variation si applicable
                     if ($product->is_type('variation')) {
                         $variation_attributes = $product->get_variation_attributes();
                         if (!empty($variation_attributes)) {
@@ -90,7 +102,7 @@ class PurchaseController {
                         }
                     }
 
-                    // Discount and coupon
+                    // Coupon et remise (approximation cohérente avec l'implémentation d'origine)
                     $coupon_code = $order->get_coupon_codes();
                     if (!empty($coupon_code)) {
                         $product_data['coupon'] = $coupon_code[0];
@@ -114,6 +126,7 @@ class PurchaseController {
             }
         }
 
+        // 5) Injection du script dans le footer
         $this->render_view('purchase', $event_data);
     }
 

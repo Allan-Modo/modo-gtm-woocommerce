@@ -6,8 +6,10 @@ use ModoGtmWc\Models\EventDataBuilder;
 if (!defined('ABSPATH')) exit;
 
 /**
- * Gère remove_from_cart en enrichissant le lien de suppression avec les données eCommerce.
- * Le JS front écoute le clic et pousse l'évènement dans le dataLayer.
+ * Contrôleur de l'évènement « remove_from_cart » (suppression du panier).
+ *
+ * Le lien « remove » est enrichi avec un attribut `data-event_data` contenant la charge eCommerce.
+ * Le script front écoute le clic et pousse l'évènement côté navigateur.
  */
 class RemoveFromCartController {
     /** Enregistre le filtre sur le lien de suppression dans le panier. */
@@ -39,7 +41,9 @@ class RemoveFromCartController {
                 $builder = new EventDataBuilder();
                 $item = $builder->buildItem($product, (int) $cart_item['quantity']);
 
-                // override price and add coupon to follow legacy behaviour
+                // Aligner sur le comportement historique :
+                // - item.price = total de ligne
+                // - ecommerce.value = total de ligne
                 $item['price'] = (float) $cart_item['line_total'];
 
                 $cart_coupon = WC()->cart ? WC()->cart->get_applied_coupons() : [];
