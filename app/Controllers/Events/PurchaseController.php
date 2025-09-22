@@ -26,16 +26,16 @@ class PurchaseController {
      * @param int|string $order_id Identifiant de la commande
      */
     public function handle($order_id): void {
-        // 1) Vérifier l'activation de l'évènement dans les réglages
+        // Vérifier l'activation de l'évènement dans les réglages
         $settings = get_option('modogtmwc_purchase_settings', []);
         if (empty($settings['event_purchase'])) return;
 
-        // 2) Charger la commande
+        // Charger la commande
         $order = wc_get_order($order_id);
         if (!$order) return;
 
         $event_data = [];
-        // 3) Construire la charge commande si l'option « Inclure les données » est active
+        // Construire la charge commande si l'option « Inclure les données » est active
         if (!empty($settings['event_purchase_include_data'])) {
             $event_data['ecommerce'] = [
                 'transaction_id' => (string) $order->get_order_number(),
@@ -48,7 +48,7 @@ class PurchaseController {
                 $advanced_settings = get_option('modogtmwc_settings', []);
                 $product_index = 0;
 
-                // 4) Parcourir les lignes de commande et construire les items
+                // Parcourir les lignes de commande et construire les items
                 foreach ($order->get_items() as $item_id => $item) {
                     $product = $item->get_product();
                     if (!$product) continue;

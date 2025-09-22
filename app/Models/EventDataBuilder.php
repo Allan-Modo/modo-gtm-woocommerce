@@ -28,8 +28,8 @@ class EventDataBuilder {
     public function buildItem(\WC_Product $product, int $quantity = 1, array $opts = []): array {
         $defaults = [
             'suppress_variants' => false,
-            'variation_values'  => [], // array of raw attribute values from hook
-            'variant_join'      => ', ', // how to join multiple variant values
+            'variation_values'  => [],
+            'variant_join'      => ', ',
         ];
         $opts = array_merge($defaults, $opts);
         $advanced_settings = get_option('modogtmwc_settings', []);
@@ -42,7 +42,7 @@ class EventDataBuilder {
             'quantity'  => $quantity,
         ];
 
-        // Brand (parent for variations)
+        // Marque (produit parent si produit variable)
         $product_id_for_terms = $product->is_type('variation') ? $product->get_parent_id() : $product->get_id();
         $brand = get_the_terms($product_id_for_terms, 'product_brand');
         if (!empty($brand) && !is_wp_error($brand)) {
