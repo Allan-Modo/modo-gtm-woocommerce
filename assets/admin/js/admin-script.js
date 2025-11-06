@@ -1,3 +1,5 @@
+// Script admin : gère l'affichage conditionnel des sous‑options
+// en fonction des cases à cocher parentes (dépendances simples/multiples).
 jQuery(document).ready(function ($) {
 
     function updateVisibility() {
@@ -20,10 +22,10 @@ jQuery(document).ready(function ($) {
         });
     }
 
-    // État initial
+    // État initial : calculer la visibilité au chargement
     updateVisibility();
 
-    // Recalcul à chaque changement
+    // Recalcul à chaque changement d'une case à cocher
     $("input[type=checkbox]").on("change", function () {
         updateVisibility();
     });
