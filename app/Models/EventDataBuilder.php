@@ -4,27 +4,27 @@ namespace ModoGtmWc\Models;
 if (!defined('ABSPATH')) exit;
 
 /**
- * Construit les tableaux d'items eCommerce pour les pushs dataLayer.
- *
- * Centralise le mapping des données produit (marque, catégories, variantes, remises)
- * et permet des ajustements selon le contexte via des options.
- */
+* Construit les tableaux d'items eCommerce pour les pushs dataLayer.
+*
+* Centralise le mapping des données produit (marque, catégories, variantes, remises)
+* et permet des ajustements selon le contexte via des options.
+*/
 class EventDataBuilder {
     /**
-     * Build a single ecommerce item array for a product.
-     *
-     * @param \WC_Product $product
-     * @param int $quantity
-     * @return array
-     */
+    * Build a single ecommerce item array for a product.
+    *
+    * @param \WC_Product $product
+    * @param int $quantity
+    * @return array
+    */
     /**
-     * Construit la structure d'un item eCommerce pour un produit.
-     *
-     * @param \WC_Product $product  Produit (ou variation)
-     * @param int         $quantity Quantité pour cet item
-     * @param array       $opts     Options de contexte: suppress_variants, variation_values, variant_join
-     * @return array
-     */
+    * Construit la structure d'un item eCommerce pour un produit.
+    *
+    * @param \WC_Product $product  Produit (ou variation)
+    * @param int         $quantity Quantité pour cet item
+    * @param array       $opts     Options de contexte: suppress_variants, variation_values, variant_join
+    * @return array
+    */
     public function buildItem(\WC_Product $product, int $quantity = 1, array $opts = []): array {
         $defaults = [
             'suppress_variants' => false,
@@ -33,7 +33,7 @@ class EventDataBuilder {
         ];
         $opts = array_merge($defaults, $opts);
         $advanced_settings = get_option('modogtmwc_settings', []);
-
+        
         // Champs de base de l'item
         $item = [
             'item_id'   => $product->get_sku() ?: $product->get_id(),
@@ -41,27 +41,40 @@ class EventDataBuilder {
             'price'     => (float) $product->get_price(),
             'quantity'  => $quantity,
         ];
-
+        
         // Marque (produit parent si produit variable)
         $product_id_for_terms = $product->is_type('variation') ? $product->get_parent_id() : $product->get_id();
         $brand = get_the_terms($product_id_for_terms, 'product_brand');
         if (!empty($brand) && !is_wp_error($brand)) {
             $item['item_brand'] = $brand[0]->name;
         }
-
+        
         // Catégories (mode smart: chemin le plus profond; sinon: catégories de niveau 1)
         $terms = get_the_terms($product_id_for_terms, 'product_cat');
         if ($terms && !is_wp_error($terms)) {
             $cat_levels = [];
-
-            if (!empty($advanced_settings['events_smart_categories'])) {
+            $smart_mode = !empty($advanced_settings['events_smart_categories']);
+            
+            // Détermine si le produit a une sous-catégorie
+            $has_child_category = false;
+            foreach ($terms as $term) {
+                if ((int) $term->parent !== 0) {
+                    $has_child_category = true;
+                    break;
+                }
+            }
+            
+            if ($smart_mode && $has_child_category) {
+                // Mode intelligent + produit avec sous-catégorie
                 $deepest_cat = null;
-                $max_depth = 0;
+                $max_depth = -1;
                 foreach ($terms as $term) {
                     $depth = 0;
                     $current = $term;
-                    while ($current->parent) {
-                        $current = get_term($current->parent, 'product_cat');
+                    while ((int) $current->parent !== 0) {
+                        $parent_term = get_term($current->parent, 'product_cat');
+                        if (!$parent_term || is_wp_error($parent_term)) break;
+                        $current = $parent_term;
                         $depth++;
                     }
                     if ($depth > $max_depth) {
@@ -69,25 +82,38 @@ class EventDataBuilder {
                         $deepest_cat = $term;
                     }
                 }
-                $current = $deepest_cat;
-                while ($current) {
-                    array_unshift($cat_levels, $current->name);
-                    $current = $current->parent ? get_term($current->parent, 'product_cat') : null;
+                if ($deepest_cat) {
+                    $current = $deepest_cat;
+                    while ($current) {
+                        array_unshift($cat_levels, $current->name);
+                        if ((int) $current->parent === 0) break;
+                        $parent_term = get_term($current->parent, 'product_cat');
+                        if (!$parent_term || is_wp_error($parent_term)) break;
+                        $current = $parent_term;
+                    }
+                }
+            } elseif ($smart_mode && !$has_child_category) {
+                // Mode intelligent mais aucune sous-catégorie → on prend toutes les catégories
+                foreach ($terms as $term) {
+                    $cat_levels[] = $term->name;
                 }
             } else {
+                // Mode normal désactivé → on prend uniquement les racines
                 foreach ($terms as $term) {
-                    if ($term->parent == 0) {
+                    if ((int) $term->parent === 0) {
                         $cat_levels[] = $term->name;
                     }
                 }
             }
-
+            
+            // Ajoute les catégories à $item
             foreach ($cat_levels as $index => $cat_name) {
                 $key = $index === 0 ? 'item_category' : 'item_category' . ($index + 1);
                 $item[$key] = $cat_name;
             }
         }
-
+        
+        
         // Remise (variation > variable > simple)
         $discount = 0;
         if ($product->is_on_sale()) {
@@ -106,7 +132,7 @@ class EventDataBuilder {
         if ($discount > 0) {
             $item['discount'] = $discount;
         }
-
+        
         // Variantes avec priorité selon le contexte
         if (!$opts['suppress_variants']) {
             $variant_values = [];
@@ -144,7 +170,7 @@ class EventDataBuilder {
                 $item['item_variant'] = implode($opts['variant_join'], $variant_values);
             }
         }
-
+        
         return $item;
     }
 }

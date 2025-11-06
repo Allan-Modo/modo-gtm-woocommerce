@@ -126,7 +126,7 @@ class SettingsController {
         add_settings_section('modogtmwc_section', 'Paramètres avancés', null, 'modogtmwc-settings');
         add_settings_field('events_smart_categories', 'Gestion intelligente des catégories', [$this, 'render_checkbox'], 'modogtmwc-settings', 'modogtmwc_section', [
             'label_for' => 'events_smart_categories',
-            'description' => 'Si cochée, l\'envoi se base sur la catégorie avec le plus de profondeur hiérarchique et envoi chaque catégorie jusqu\'à 5 niveau de profondeur. Si décochée, l\'envoi se base uniquement sur les catégorie de premier niveau',
+            'description' => 'Si cochée, l\'envoi se base sur la catégorie avec le plus de profondeur hiérarchique (jusqu\'à cinq niveaux de profondeur) lorsque des sous-catégories existent. Si le produit n\'a pas de sous-catégorie, toutes les catégories du premier niveau du produit sont envoyées. Si décochée, seules les catégories de premier niveau sont envoyées.',
             'option_name' => 'modogtmwc_settings'
         ]);
     }

@@ -20,10 +20,26 @@ class ViewItemListController {
         ]
     ];
 
-    /** Enregistre les hooks de collecte (boucle) et de rendu (footer). */
+    private static $current_product_id = 0;
+
     public function register(): void {
+        add_action('template_redirect', [$this, 'capture_current_product_id'], 5);
         add_action('the_post', [$this, 'handle'], 20, 1);
         add_action('wp_footer', [$this, 'render'], 10, 0);
+    }
+
+    /** Capture l’ID du produit affiché sur la page single avant toute boucle. */
+    public function capture_current_product_id(): void {
+        if (is_product()) {
+            global $product;
+            if ($product instanceof \WC_Product) {
+                self::$current_product_id = $product->get_id();
+            } else {
+                // fallback si global $product n’est pas encore instancié
+                $obj = get_queried_object();
+                self::$current_product_id = $obj->ID ?? 0;
+            }
+        }
     }
 
     /**
@@ -37,18 +53,20 @@ class ViewItemListController {
 
         if (!is_object($post) || $post->post_type !== 'product') return;
 
-        $product = wc_get_product($post->ID);
-        if (!$product) return;
+        $WCproduct = wc_get_product($post->ID);
+        if (!$WCproduct) return;
 
-        // Ne pas inclure le produit courant lorsque l'on est sur sa page (single)
-        if (is_product()) {
-            $current_product_id = get_queried_object()->ID ?? 0;
-            if ($product->get_id() === $current_product_id || $product->get_sku() === get_post_meta($current_product_id, '_sku', true)) {
+        // Ne pas inclure le produit principal sur sa page
+        if (is_product() && self::$current_product_id > 0) {
+            if (
+                $WCproduct->get_id() === self::$current_product_id ||
+                $WCproduct->get_sku() === get_post_meta(self::$current_product_id, '_sku', true)
+            ) {
                 return;
             }
         }
 
-        $this->collect_unique_product($product);
+        $this->collect_unique_product($WCproduct);
     }
 
     /** Ajoute un produit à la charge eCommerce s'il n'a pas déjà été vu. */
@@ -92,8 +110,9 @@ class ViewItemListController {
         } else {
             self::$event_data = [];
         }
-
-        $this->render_view('view_item_list', self::$event_data);
+        if(!empty(self::$event_data['ecommerce']['items'])){
+            $this->render_view('view_item_list', self::$event_data);
+        }
     }
 
     /** Inclut le template partagé et affiche le rendu. */
