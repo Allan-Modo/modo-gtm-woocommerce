@@ -34,6 +34,10 @@ class SettingsController {
     public function register_settings(): void {
         register_setting('modogtmwc_add_to_cart_group', 'modogtmwc_add_to_cart_settings');
         register_setting('modogtmwc_remove_from_cart_group', 'modogtmwc_remove_from_cart_settings');
+        register_setting('modogtmwc_view_cart_group', 'modogtmwc_view_cart_settings');
+        register_setting('modogtmwc_begin_checkout_group', 'modogtmwc_begin_checkout_settings');
+        register_setting('modogtmwc_add_payment_info_group', 'modogtmwc_add_payment_info_settings');
+        register_setting('modogtmwc_add_shipping_info_group', 'modogtmwc_add_shipping_info_settings');
         register_setting('modogtmwc_purchase_group', 'modogtmwc_purchase_settings');
         register_setting('modogtmwc_view_item_group', 'modogtmwc_view_item_settings');
         register_setting('modogtmwc_view_item_list_group', 'modogtmwc_view_item_list_settings');
@@ -75,6 +79,82 @@ class SettingsController {
             'class' => 'sub-option sub-option-remove-from-cart',
             'depends_multi' => ['event_remove_from_cart', 'event_remove_from_cart_include_data'],
             'option_name' => 'modogtmwc_remove_from_cart_settings'
+        ]);
+
+        // VIEW CART
+        add_settings_section('modogtmwc_view_cart_section', 'Paramètres "Vue du panier"', null, 'modogtmwc-settings-view-cart');
+        add_settings_field('event_view_cart', 'Activer l\'événement "Vue du panier"', [$this, 'render_checkbox'], 'modogtmwc-settings-view-cart', 'modogtmwc_view_cart_section', [
+            'label_for' => 'event_view_cart',
+            'option_name' => 'modogtmwc_view_cart_settings'
+        ]);
+        add_settings_field('event_view_cart_include_data', 'Inclure les données du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-view-cart', 'modogtmwc_view_cart_section', [
+            'label_for' => 'event_view_cart_include_data',
+            'class' => 'sub-option sub-option-view-cart',
+            'depends' => 'event_view_cart',
+            'option_name' => 'modogtmwc_view_cart_settings'
+        ]);
+        add_settings_field('event_view_cart_products_details', 'Inclure les détails des produits du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-view-cart', 'modogtmwc_view_cart_section', [
+            'label_for' => 'event_view_cart_products_details',
+            'class' => 'sub-option sub-option-view-cart',
+            'depends_multi' => ['event_view_cart', 'event_view_cart_include_data'],
+            'option_name' => 'modogtmwc_view_cart_settings'
+        ]);
+
+        // ADD PAYMENT INFO
+        add_settings_section('modogtmwc_add_payment_info_section', 'Paramètres "Sélection d\'un moyen de paiement"', null, 'modogtmwc-settings-add-payment-info');
+        add_settings_field('event_add_payment_info', 'Activer l\'événement "Sélection moyen de paiement"', [$this, 'render_checkbox'], 'modogtmwc-settings-add-payment-info', 'modogtmwc_add_payment_info_section', [
+            'label_for' => 'event_add_payment_info',
+            'option_name' => 'modogtmwc_add_payment_info_settings'
+        ]);
+        add_settings_field('event_add_payment_info_include_data', 'Inclure les données du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-add-payment-info', 'modogtmwc_add_payment_info_section', [
+            'label_for' => 'event_add_payment_info_include_data',
+            'class' => 'sub-option sub-option-add-payment-info',
+            'depends' => 'event_add_payment_info',
+            'option_name' => 'modogtmwc_add_payment_info_settings'
+        ]);
+        add_settings_field('event_add_payment_info_products_details', 'Inclure les détails des produits du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-add-payment-info', 'modogtmwc_add_payment_info_section', [
+            'label_for' => 'event_add_payment_info_products_details',
+            'class' => 'sub-option sub-option-add-payment-info',
+            'depends_multi' => ['event_add_payment_info', 'event_add_payment_info_include_data'],
+            'option_name' => 'modogtmwc_add_payment_info_settings'
+        ]);
+
+        // BEGIN CHECKOUT
+        add_settings_section('modogtmwc_begin_checkout_section', 'Paramètres "Début du checkout"', null, 'modogtmwc-settings-begin-checkout');
+        add_settings_field('event_begin_checkout', 'Activer l\'événement "Début du checkout"', [$this, 'render_checkbox'], 'modogtmwc-settings-begin-checkout', 'modogtmwc_begin_checkout_section', [
+            'label_for' => 'event_begin_checkout',
+            'option_name' => 'modogtmwc_begin_checkout_settings'
+        ]);
+        add_settings_field('event_begin_checkout_include_data', 'Inclure les données du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-begin-checkout', 'modogtmwc_begin_checkout_section', [
+            'label_for' => 'event_begin_checkout_include_data',
+            'class' => 'sub-option sub-option-begin-checkout',
+            'depends' => 'event_begin_checkout',
+            'option_name' => 'modogtmwc_begin_checkout_settings'
+        ]);
+        add_settings_field('event_begin_checkout_products_details', 'Inclure les détails des produits du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-begin-checkout', 'modogtmwc_begin_checkout_section', [
+            'label_for' => 'event_begin_checkout_products_details',
+            'class' => 'sub-option sub-option-begin-checkout',
+            'depends_multi' => ['event_begin_checkout', 'event_begin_checkout_include_data'],
+            'option_name' => 'modogtmwc_begin_checkout_settings'
+        ]);
+
+        // ADD SHIPPING INFO
+        add_settings_section('modogtmwc_add_shipping_info_section', 'Paramètres "Sélection du mode de livraison"', null, 'modogtmwc-settings-add-shipping-info');
+        add_settings_field('event_add_shipping_info', 'Activer l\'événement "Sélection livraison"', [$this, 'render_checkbox'], 'modogtmwc-settings-add-shipping-info', 'modogtmwc_add_shipping_info_section', [
+            'label_for' => 'event_add_shipping_info',
+            'option_name' => 'modogtmwc_add_shipping_info_settings'
+        ]);
+        add_settings_field('event_add_shipping_info_include_data', 'Inclure les données du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-add-shipping-info', 'modogtmwc_add_shipping_info_section', [
+            'label_for' => 'event_add_shipping_info_include_data',
+            'class' => 'sub-option sub-option-add-shipping-info',
+            'depends' => 'event_add_shipping_info',
+            'option_name' => 'modogtmwc_add_shipping_info_settings'
+        ]);
+        add_settings_field('event_add_shipping_info_products_details', 'Inclure les détails des produits du panier', [$this, 'render_checkbox'], 'modogtmwc-settings-add-shipping-info', 'modogtmwc_add_shipping_info_section', [
+            'label_for' => 'event_add_shipping_info_products_details',
+            'class' => 'sub-option sub-option-add-shipping-info',
+            'depends_multi' => ['event_add_shipping_info', 'event_add_shipping_info_include_data'],
+            'option_name' => 'modogtmwc_add_shipping_info_settings'
         ]);
 
         // PURCHASE

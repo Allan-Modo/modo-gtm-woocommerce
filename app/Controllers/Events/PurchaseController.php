@@ -34,6 +34,19 @@ class PurchaseController {
         $order = wc_get_order($order_id);
         if (!$order) return;
 
+        // Empêcher un double déclenchement (hook appelé 2x ou page rechargée)
+        $order_id = (int) $order_id;
+        $session_key = 'modogtmwc_purchase_fired_' . $order_id;
+        $session = function_exists('WC') && WC()->session ? WC()->session : null;
+        static $processed_orders = [];
+        if (isset($processed_orders[$order_id]) || ($session && $session->get($session_key))) {
+            return;
+        }
+        $processed_orders[$order_id] = true;
+        if ($session) {
+            $session->set($session_key, true);
+        }
+
         $event_data = [];
         // Construire la charge commande si l'option « Inclure les données » est active
         if (!empty($settings['event_purchase_include_data'])) {

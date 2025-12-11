@@ -7,6 +7,10 @@ use ModoGtmWc\Controllers\Events\AddToCartController;
 use ModoGtmWc\Controllers\Events\RemoveFromCartController;
 use ModoGtmWc\Controllers\Events\PurchaseController;
 use ModoGtmWc\Controllers\Events\ViewItemListController;
+use ModoGtmWc\Controllers\Events\ViewCartController;
+use ModoGtmWc\Controllers\Events\AddPaymentInfoController;
+use ModoGtmWc\Controllers\Events\AddShippingInfoController;
+use ModoGtmWc\Controllers\Events\BeginCheckoutController;
 use ModoGtmWc\Controllers\Admin\SettingsController;
 use ModoGtmWc\Controllers\Frontend\AssetsController;
 
@@ -36,6 +40,10 @@ class Plugin {
             (new RemoveFromCartController())->register();
             (new PurchaseController())->register();
             (new ViewItemListController())->register();
+            (new ViewCartController())->register();
+            (new AddPaymentInfoController())->register();
+            (new AddShippingInfoController())->register();
+            (new BeginCheckoutController())->register();
         }
 
         // Réglages / Admin
